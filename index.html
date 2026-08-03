@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扑克牌收集记录器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background-color: #18191c;
+            color: #e5e7eb;
+            min-height: 100vh;
+            padding: 20px 16px;
+        }
+        .container {
+            max-width: 1260px;
+            margin: 0 auto;
+        }
+
+        /* 缺失清单面板 */
+        .missing-panel {
+            background-color: #242529;
+            border: 1px solid #34363b;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+        }
+        .missing-toggle-title {
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            user-select: none;
+            color: #cbd5e1;
+        }
+        .missing-toggle-title:hover {
+            color: #ffffff;
+        }
+        .missing-content {
+            margin-top: 10px;
+            color: #a1a9b8;
+            line-height: 1.7;
+            overflow: hidden;
+            transition: max-height 0.75s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .missing-content.init-closed {
+            max-height: 0;
+            opacity: 0;
+        }
+        .missing-group-title{
+            font-weight: 500;
+            margin-top:6px;
+            display:block;
+            color:#d0d8e6;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom:12px;
+        }
+        .control-bar{
+            margin:14px 0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:12px;
+            flex-wrap: wrap;
+        }
+        .control-bar label{
+            font-size:15px;
+            color:#cbd5e1;
+        }
+
+        /* 横向排序按钮组 */
+        .sort-btn-group{
+            display:flex;
+            gap:10px;
+            flex-wrap: wrap;
+            justify-content:center;
+        }
+        .sort-btn{
+            padding:8px 16px;
+            border-radius:6px;
+            border:1px solid #3a3c42;
+            font-size:14px;
+            background:#2a2c31;
+            color:#e2e8f0;
+            cursor:pointer;
+            transition: 0.2s ease;
+        }
+        .sort-btn:hover{
+            border-color:#479966;
+        }
+        .sort-btn.active{
+            background:#395747;
+            border-color:#479966;
+            color:#89ddaa;
+        }
+
+        .stats {
+            font-size: 16px;
+            color:#cbd5e1;
+        }
+        .stats span{
+            font-weight:600;
+            color:#74d097;
+        }
+
+        /* 分组容器 */
+        .group-wrap{
+            margin:16px 0;
+        }
+        .group-header{
+            display:flex;
+            align-items:center;
+            gap:8px;
+            cursor:pointer;
+            font-size:17px;
+            font-weight:500;
+            color:#cbd5e1;
+            padding-left:8px;
+            border-left:3px solid #479966;
+            user-select:none;
+        }
+        .group-arrow{
+            font-size:14px;
+            color:#9499a3;
+            transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+            display:inline-block;
+        }
+        .group-card-container{
+            margin-top:8px;
+            overflow: hidden;
+            transition: max-height 0.75s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .group-card-container.closed{
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .card-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+            gap: 10px;
+            margin: 8px 0;
+            padding: 0 6px;
+        }
+
+        /* 卡牌双层隔离 */
+        .card-holder {
+            height: 84px;
+            width: 100%;
+            position: relative;
+        }
+        .card {
+            position: absolute;
+            inset: 0;
+            background-color: #ffffff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size:16px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+            user-select: none;
+            font-weight: 600;
+            text-align: center;
+            border:1px solid #ddd;
+            transform-origin: center bottom;
+            will-change: transform, background-color;
+            color:#111111;
+        }
+        .card:hover {
+            transform: scale(1.04);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+        }
+        .card.owned {
+            background-color: #479966;
+            border-color:#3b8657;
+            color:#ffffff;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="missing-panel">
+        <div class="missing-toggle-title" id="toggleBtn">▶ 未拥有卡牌清单（点击展开）</div>
+        <div class="missing-content init-closed" id="missingList"></div>
+    </div>
+
+    <div class="header">
+        <h1>扑克牌收集清单</h1>
+        <div class="control-bar">
+            <label>排序模式：</label>
+            <div class="sort-btn-group">
+                <button class="sort-btn active" data-val="suit">按花色分组</button>
+                <button class="sort-btn" data-val="rank">按点数分组</button>
+            </div>
+        </div>
+        <div class="stats">
+            已收集：<span id="ownedCount">0</span> / 54
+        </div>
+    </div>
+
+    <div id="cardBox"></div>
+</div>
+
+<script>
+const groupConfig = [
+    {
+        name:"大小王",
+        cards:[
+            {id:"bigJoker", text:"大王", rank:"JOKER"},
+            {id:"smallJoker", text:"小王", rank:"JOKER"}
+        ]
+    },
+    {
+        name:"黑桃",
+        suitName:"黑桃"
+    },
+    {
+        name:"红桃",
+        suitName:"红桃"
+    },
+    {
+        name:"梅花",
+        suitName:"梅花"
+    },
+    {
+        name:"方片",
+        suitName:"方片"
+    }
+];
+const ranksOrder = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const suitOrder = ["黑桃","红桃","梅花","方片"];
+
+let ownedCards = JSON.parse(localStorage.getItem('pokerOwned')) || [];
+let sortMode = "suit";
+const cardBox = document.getElementById('cardBox');
+const countEl = document.getElementById('ownedCount');
+const missingEl = document.getElementById('missingList');
+const toggleBtn = document.getElementById('toggleBtn');
+const missingContent = document.querySelector('.missing-content');
+const sortButtons = document.querySelectorAll('.sort-btn');
+
+let folded = true;
+const groupOpenMap = {};
+
+function togglePanel(){
+    folded = !folded;
+    const targetHeight = missingContent.scrollHeight;
+    if(folded){
+        missingContent.style.maxHeight = targetHeight + 'px';
+        missingContent.classList.add('init-closed');
+        setTimeout(()=> missingContent.style.maxHeight = '0px', 10);
+        toggleBtn.innerText = "▶ 未拥有卡牌清单（点击展开）";
+    }else{
+        missingContent.classList.remove('init-closed');
+        missingContent.style.maxHeight = '0px';
+        setTimeout(()=> missingContent.style.maxHeight = targetHeight + 'px', 10);
+        toggleBtn.innerText = "▼ 未拥有卡牌清单（点击折叠）";
+    }
+}
+toggleBtn.addEventListener('click', togglePanel);
+
+sortButtons.forEach(btn=>{
+    btn.onclick = function(){
+        sortMode = this.dataset.val;
+        sortButtons.forEach(b=>b.classList.remove('active'));
+        this.classList.add('active');
+        renderCards();
+    }
+})
+
+let allCardList = [];
+
+function buildAllCards(){
+    allCardList = [];
+    for(let g of groupConfig){
+        if(g.cards){
+            allCardList.push(...g.cards);
+        }else{
+            for(let r of ranksOrder){
+                const id = g.suitName + r;
+                allCardList.push({
+                    id: id,
+                    text: g.suitName + r,
+                    groupName: g.name,
+                    rank: r,
+                    suit: g.suitName
+                })
+            }
+        }
+    }
+    allCardList.find(x=>x.id==="bigJoker").groupName="大小王";
+    allCardList.find(x=>x.id==="smallJoker").groupName="大小王";
+}
+
+function renderCards(){
+    buildAllCards();
+    cardBox.innerHTML = '';
+    const groupDataList = [];
+
+    if(sortMode === "suit"){
+        for(let g of groupConfig){
+            let items = [];
+            if(g.cards){
+                items = g.cards;
+            }else{
+                items = ranksOrder.map(r=>{
+                    return {
+                        id: g.suitName + r,
+                        text: g.suitName + r
+                    }
+                })
+            }
+            groupDataList.push({title:g.name, items});
+        }
+    }else{
+        {
+            const jokers = allCardList.filter(c=>c.rank==="JOKER");
+            groupDataList.push({title:"大小王", items: jokers});
+        }
+        for(let r of ranksOrder){
+            let sameRank = allCardList.filter(c=>c.rank === r);
+            sameRank.sort((a,b)=> suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit));
+            groupDataList.push({title: r, items: sameRank});
+        }
+    }
+
+    groupDataList.forEach(group=>{
+        if(groupOpenMap[group.title] === undefined) groupOpenMap[group.title] = true;
+        const wrap = document.createElement('div');
+        wrap.className = "group-wrap";
+
+        const header = document.createElement('div');
+        header.className = "group-header";
+        const arrowText = groupOpenMap[group.title] ? "▼" : "▶";
+        const arrowRotate = groupOpenMap[group.title] ? "rotate(0deg)" : "rotate(-90deg)";
+        header.innerHTML = `<span class="group-arrow" style="transform:${arrowRotate}">${arrowText}</span><span>${group.title}</span>`;
+
+        const container = document.createElement('div');
+        container.className = "group-card-container";
+        container.dataset.gtitle = group.title;
+
+        const rowDom = document.createElement('div');
+        rowDom.className = "card-row";
+        group.items.forEach(item=> appendCardDom(item, rowDom));
+        container.appendChild(rowDom);
+
+        wrap.appendChild(header);
+        wrap.appendChild(container);
+        cardBox.appendChild(wrap);
+
+        requestAnimationFrame(()=>{
+            if(!groupOpenMap[group.title]){
+                container.classList.add('closed');
+                container.style.maxHeight = '0px';
+            }else{
+                container.style.maxHeight = container.scrollHeight + 'px';
+            }
+        });
+
+        header.onclick = ()=>{
+            const gTitle = group.title;
+            const isOpen = groupOpenMap[gTitle];
+            const arrow = header.querySelector('.group-arrow');
+            const fullH = container.scrollHeight;
+
+            if(isOpen){
+                container.style.maxHeight = fullH + 'px';
+                setTimeout(()=>{
+                    container.classList.add('closed');
+                    container.style.maxHeight = '0px';
+                },10);
+                arrow.textContent = "▶";
+                arrow.style.transform = "rotate(-90deg)";
+            }else{
+                container.classList.remove('closed');
+                container.style.maxHeight = '0px';
+                setTimeout(()=> container.style.maxHeight = fullH + 'px',10);
+                arrow.textContent = "▼";
+                arrow.style.transform = "rotate(0deg)";
+            }
+            groupOpenMap[gTitle] = !isOpen;
+        };
+    })
+
+    updateUI();
+}
+
+function appendCardDom(item, container){
+    const holder = document.createElement('div');
+    holder.className = 'card-holder';
+    const div = document.createElement('div');
+    div.className = 'card';
+    if(ownedCards.includes(item.id)) div.classList.add('owned');
+    div.innerText = item.text;
+    div.dataset.id = item.id;
+    div.onclick = ()=>toggleCard(item.id, div);
+    holder.appendChild(div);
+    container.appendChild(holder);
+}
+
+function toggleCard(id, dom){
+    const idx = ownedCards.indexOf(id);
+    if(idx > -1){
+        ownedCards.splice(idx,1);
+        dom.classList.remove('owned');
+    }else{
+        ownedCards.push(id);
+        dom.classList.add('owned');
+    }
+    saveData();
+    updateUI();
+}
+
+function saveData(){
+    localStorage.setItem('pokerOwned', JSON.stringify(ownedCards));
+}
+
+function updateUI(){
+    countEl.innerText = ownedCards.length;
+    const missing = allCardList.filter(c => !ownedCards.includes(c.id));
+    if(missing.length === 0){
+        missingEl.innerHTML = "<div style='color:#74d097;font-weight:500'>全部收集完成！🎉</div>";
+        return;
+    }
+    let html = "";
+    if(sortMode === "suit"){
+        for(let g of groupConfig){
+            const groupItems = missing.filter(x=>x.groupName === g.name);
+            if(groupItems.length>0){
+                html += `<span class="missing-group-title">${g.name}：</span>`;
+                html += groupItems.map(i=>i.text).join('  ') + "<br>";
+            }
+        }
+    }else{
+        const jokerList = missing.filter(c=>c.rank==="JOKER");
+        if(jokerList.length>0){
+            html += `<span class="missing-group-title">大小王：</span>`;
+            html += jokerList.map(i=>i.text).join('  ') + "<br>";
+        }
+        for(let r of ranksOrder){
+            let sameRank = missing.filter(c=>c.rank === r);
+            if(sameRank.length>0){
+                sameRank.sort((a,b)=> suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit));
+                html += `<span class="missing-group-title">${r}：</span>`;
+                html += sameRank.map(i=>i.text).join('  ') + "<br>";
+            }
+        }
+    }
+    missingEl.innerHTML = html;
+    if(!folded){
+        missingContent.style.maxHeight = missingContent.scrollHeight + 'px';
+    }
+}
+
+renderCards();
+</script>
+</body>
+</html>
