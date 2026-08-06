@@ -464,11 +464,11 @@
             border-radius: 2px;
         }
 
-        /* ===== 抽屉系统 ===== */
+        /* ===== 侧面抽屉：全高度、非全宽度 ===== */
         .drawer-mask {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.55);
+            background: rgba(0,0,0,0.4);
             z-index: 400;
             opacity: 0;
             visibility: hidden;
@@ -480,8 +480,8 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 100%;
-            max-width: var(--drawer-width);
+            bottom: 0;
+            width: min(var(--drawer-width), 92vw);
             height: 100%;
             background: linear-gradient(180deg, #1e222c 0%, #1a1d24 40%, #171a20 100%);
             border-left: 3px solid var(--edge-config);
@@ -490,7 +490,7 @@
             flex-direction: column;
             transform: translateX(100%);
             transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+            box-shadow: -8px 0 32px rgba(0,0,0,0.45);
         }
         .drawer.show { transform: translateX(0); }
 
@@ -516,9 +516,12 @@
         .drawer-close:hover { color: #fff; }
 
         .drawer-body {
-            flex: 1;
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
-            padding: 16px 18px;
+            overflow-x: hidden;
+            padding: 16px 18px 24px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .drawer-footer {
@@ -530,17 +533,43 @@
         }
         .drawer-footer .btn { flex: 1; }
 
-        /* 配置列表 */
-        .config-list { list-style: none; margin: 0 0 16px; }
+        /* 行内改名（不另开抽屉，保证管理内容完整） */
+        .config-item.renaming {
+            flex-wrap: wrap;
+            cursor: default;
+            border-color: var(--edge-config);
+            background: #1a222c;
+        }
+        .config-item .rename-row {
+            width: 100%;
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .config-item .rename-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #3a4555;
+            background: #252830;
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+        }
+        .config-item .rename-row input:focus { border-color: var(--accent); }
+
+        /* 配置列表（管理抽屉） */
+        .config-list { list-style: none; margin: 0 0 12px; }
         .config-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 12px;
+            gap: 10px;
+            padding: 11px 12px;
             border-radius: 8px;
             background: #252830;
             border: 1px solid transparent;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             transition: border-color var(--transition), background var(--transition);
             cursor: pointer;
         }
@@ -564,10 +593,15 @@
         }
         .config-item-actions {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            flex-direction: row;
+            gap: 6px;
+            flex-shrink: 0;
         }
-        .config-item-actions .btn { padding: 3px 8px; font-size: 11px; white-space: nowrap; }
+        .config-item-actions .btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
 
         /* 展开面板列表项 */
         .switch-item {
@@ -766,7 +800,10 @@
             .card-row { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
             .header h1 { font-size: 20px; }
             .card .card-text { font-size: 12px; }
-            :root { --drawer-width: 100%; }
+            /* 小屏仍全高度、非全宽 */
+            .drawer {
+                width: min(360px, 92vw);
+            }
         }
     </style>
 </head>
@@ -846,42 +883,27 @@
     </div>
     <div class="drawer-body">
         <div class="section-title">我的配置</div>
+        <p class="hint" style="margin:-4px 0 10px">点击条目切换 · 当前配置保持高亮</p>
         <ul class="config-list" id="configList"></ul>
 
-        <div class="section-title">新建配置</div>
+        <div class="section-title">新建</div>
         <div class="form-group">
-            <input type="text" class="form-input" id="newConfigName" placeholder="输入配置名称…" maxlength="30">
+            <input type="text" class="form-input" id="newConfigName" placeholder="配置名称" maxlength="30">
         </div>
-        <button class="btn primary block" id="btnCreateConfig">＋ 创建</button>
+        <button class="btn primary block" id="btnCreateConfig">创建</button>
 
-        <div class="section-title">导出 / 导入</div>
-        <button class="btn block" id="btnExport" style="margin-bottom:8px">一键复制当前配置</button>
+        <div class="section-title">导出 / 导入当前配置</div>
+        <button class="btn block" id="btnExport" style="margin-bottom:8px">复制当前配置</button>
         <div class="form-group">
-            <label>粘贴导入当前配置（覆盖当前进度）</label>
-            <textarea class="form-textarea" id="importArea" placeholder="在此粘贴导出的单配置 JSON 数据…"></textarea>
+            <label>粘贴导入（覆盖当前进度）</label>
+            <textarea class="form-textarea" id="importArea" placeholder="粘贴 JSON…"></textarea>
         </div>
-        <button class="btn primary block" id="btnImport">导入到当前配置</button>
-        <p class="hint">仅导出/导入当前正在使用的配置进度，方便单独备份或迁移。</p>
+        <button class="btn primary block" id="btnImport">导入</button>
+        <p class="hint">仅处理当前配置，便于备份或迁移到其他设备。</p>
     </div>
 </aside>
 
-<!-- 重命名抽屉 -->
-<aside class="drawer" id="renameDrawer">
-    <div class="drawer-header">
-        <h2>重命名配置</h2>
-        <button class="drawer-close" data-close="renameDrawer">&times;</button>
-    </div>
-    <div class="drawer-body">
-        <div class="form-group">
-            <label>新名称</label>
-            <input type="text" class="form-input" id="renameInput" maxlength="30">
-        </div>
-    </div>
-    <div class="drawer-footer">
-        <button class="btn" data-close="renameDrawer">取消</button>
-        <button class="btn primary" id="renameConfirm">确认</button>
-    </div>
-</aside>
+
 
 <!-- 确认弹窗（居中） -->
 <div class="modal-mask" id="confirmMask">
@@ -1193,7 +1215,7 @@ function renderConfigList() {
                     <div class="config-item-count">${count}/54</div>
                 </div>
                 <div class="config-item-actions">
-                    <button class="btn sm" data-action="rename">重命名</button>
+                    <button class="btn sm" data-action="rename">改名</button>
                     <button class="btn sm danger" data-action="delete">删除</button>
                 </div>
             </li>
@@ -1205,20 +1227,47 @@ function renderConfigList() {
 
         // 点击整行切换配置（不关闭管理抽屉）
         item.addEventListener("click", () => {
+            if (item.classList.contains("renaming")) return;
             if (id === currentId) return;
             switchConfig(id);
-            renderConfigList(); // 刷新高亮，保持抽屉打开
+            renderConfigList();
         });
 
         item.querySelectorAll("[data-action]").forEach(btn => {
             btn.addEventListener("click", (e) => {
-                e.stopPropagation(); // 避免触发行点击切换
+                e.stopPropagation();
                 const action = btn.dataset.action;
                 if (action === "rename") {
-                    renameTargetId = id;
-                    document.getElementById("renameInput").value = store.configs[id]?.name || "";
-                    openDrawer("renameDrawer");
-                    setTimeout(() => document.getElementById("renameInput").focus(), 50);
+                    // 行内改名，不另开抽屉，保证管理面板内容完整
+                    list.querySelectorAll(".config-item.renaming").forEach(el => {
+                        el.classList.remove("renaming");
+                        el.querySelector(".rename-row")?.remove();
+                    });
+                    item.classList.add("renaming");
+                    const row = document.createElement("div");
+                    row.className = "rename-row";
+                    row.innerHTML = `
+                        <input type="text" maxlength="30" value="${escapeHtml(store.configs[id]?.name || "")}">
+                        <button class="btn sm primary" data-r="ok">确定</button>
+                        <button class="btn sm" data-r="cancel">取消</button>
+                    `;
+                    item.appendChild(row);
+                    const input = row.querySelector("input");
+                    input.focus();
+                    input.select();
+                    row.querySelector('[data-r="ok"]').onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (renameConfig(id, input.value)) renderConfigList();
+                    };
+                    row.querySelector('[data-r="cancel"]').onclick = (ev) => {
+                        ev.stopPropagation();
+                        item.classList.remove("renaming");
+                        row.remove();
+                    };
+                    input.onkeydown = (ev) => {
+                        if (ev.key === "Enter") row.querySelector('[data-r="ok"]').click();
+                        if (ev.key === "Escape") row.querySelector('[data-r="cancel"]').click();
+                    };
                 } else if (action === "delete") {
                     deleteConfig(id);
                 }
@@ -1557,16 +1606,6 @@ document.getElementById("btnCreateConfig").addEventListener("click", () => {
 });
 document.getElementById("newConfigName").addEventListener("keydown", (e) => {
     if (e.key === "Enter") document.getElementById("btnCreateConfig").click();
-});
-
-document.getElementById("renameConfirm").addEventListener("click", () => {
-    if (renameTargetId && renameConfig(renameTargetId, document.getElementById("renameInput").value)) {
-        closeDrawer("renameDrawer");
-        renameTargetId = null;
-    }
-});
-document.getElementById("renameInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") document.getElementById("renameConfirm").click();
 });
 
 // 确认弹窗
