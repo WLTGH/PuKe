@@ -481,7 +481,8 @@
             top: 0;
             right: 0;
             bottom: 0;
-            width: min(var(--drawer-width), 92vw);
+            width: var(--drawer-width);
+            max-width: 78vw;
             height: 100%;
             background: linear-gradient(180deg, #1e222c 0%, #1a1d24 40%, #171a20 100%);
             border-left: 3px solid var(--edge-config);
@@ -800,9 +801,10 @@
             .card-row { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
             .header h1 { font-size: 20px; }
             .card .card-text { font-size: 12px; }
-            /* 小屏仍全高度、非全宽 */
+            /* 小屏：全高度，宽度约 78%，左侧露出主界面 */
             .drawer {
-                width: min(360px, 92vw);
+                width: 78vw;
+                max-width: 78vw;
             }
         }
     </style>
